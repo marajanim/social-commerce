@@ -1,0 +1,22 @@
+{
+  "name": "social-commerce",
+  "private": true,
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "infra:up": "docker compose --env-file .env -f infra/docker/compose.dev.yml up -d --wait",
+    "infra:down": "docker compose --env-file .env -f infra/docker/compose.dev.yml down",
+    "infra:reset": "docker compose --env-file .env -f infra/docker/compose.dev.yml down -v"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  }
+}

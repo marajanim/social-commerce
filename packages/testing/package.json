@@ -1,0 +1,26 @@
+{
+  "name": "@sc/testing",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@testcontainers/postgresql": "^11.0.0",
+    "@testcontainers/redis": "^11.0.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@sc/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}

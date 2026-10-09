@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
