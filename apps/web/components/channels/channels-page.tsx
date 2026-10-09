@@ -1,6 +1,7 @@
 'use client';
 
-import type { ChannelAccountDto, ChannelSetupDto } from '@sc/shared';
+import type { ChannelAccountDto, ChannelSetupDto, MetaPendingPagesDto } from '@sc/shared';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiDelete, apiGet, apiPostJson } from '../../lib/api';
 import { relativeFromNow } from '../../lib/format';
@@ -15,6 +16,8 @@ const STATUS_STYLE: Record<ChannelAccountDto['status'], string> = {
   needs_attention: 'bg-amber-50 text-amber-800',
   disconnected: 'bg-red-50 text-red-700',
 };
+
+const OAUTH_ERRORS = ['state', 'denied', 'exchange', 'no_pages', 'taken', 'subscribe', 'not_configured'];
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const { t } = useI18n();
@@ -44,22 +47,55 @@ function CopyField({ label, value }: { label: string; value: string }) {
 export function ChannelsPage() {
   const me = useMe();
   const { t, locale } = useI18n();
+  const params = useSearchParams();
   const manage = can(me, 'channels.manage');
   const [accounts, setAccounts] = useState<ChannelAccountDto[] | null>(null);
   const [setup, setSetup] = useState<ChannelSetupDto | null>(null);
-  const [message, setMessage] = useState<{ tone: 'ok' | 'bad'; key: MessageKey } | null>(null);
+  const [message, setMessage] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
+  const [pending, setPending] = useState<MetaPendingPagesDto | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const r = await apiGet<ChannelAccountDto[]>('/channels');
     setAccounts(r.data ?? []);
   }, []);
+
   useEffect(() => {
     void load();
     if (manage) void apiGet<ChannelSetupDto>('/channels/setup').then((r) => setSetup(r.data));
   }, [load, manage]);
 
-  async function connect(e: FormEvent<HTMLFormElement>) {
+  // Coming back from Facebook: the API redirected here with the outcome in the address.
+  useEffect(() => {
+    const pick = params.get('pick');
+    const error = params.get('error');
+    if (params.get('connected')) setMessage({ tone: 'ok', text: t('channels.fb.connectedNow') });
+    else if (error && OAUTH_ERRORS.includes(error)) setMessage({ tone: 'bad', text: t(`channels.fb.err.${error}` as MessageKey) });
+    if (pick) {
+      void apiGet<MetaPendingPagesDto>(`/channels/meta/pending/${pick}`).then((r) => {
+        if (r.data) setPending(r.data);
+        else setMessage({ tone: 'bad', text: t('channels.fb.pick.expired') });
+      });
+    }
+    if (params.toString()) window.history.replaceState(null, '', '/channels');
+  }, [params, t]);
+
+  async function connectPicked(pageId: string) {
+    if (!pending) return;
+    setBusy(true);
+    const r = await apiPostJson(`/channels/meta/pending/${pending.id}/connect`, { pageId });
+    setBusy(false);
+    if (r.ok) {
+      setPending(null);
+      setMessage({ tone: 'ok', text: t('channels.fb.connectedNow') });
+      void load();
+    } else {
+      setMessage({ tone: 'bad', text: r.status === 409 ? t('channels.fb.err.taken') : t('channels.fb.pick.expired') });
+      if (r.status !== 409) setPending(null);
+    }
+  }
+
+  async function connectWithToken(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
@@ -74,13 +110,16 @@ export function ChannelsPage() {
     setBusy(false);
     if (r.ok) {
       form.reset();
-      setMessage({ tone: 'ok', key: 'channels.fb.ok' });
+      setMessage({ tone: 'ok', text: t('channels.fb.ok') });
       void load();
     } else {
-      setMessage({
-        tone: 'bad',
-        key: r.status === 409 ? 'channels.fb.error.taken' : r.status === 400 && /encryption/i.test(JSON.stringify(r.data)) ? 'channels.fb.error.encryption' : 'channels.fb.error.token',
-      });
+      const key: MessageKey =
+        r.status === 409
+          ? 'channels.fb.error.taken'
+          : r.status === 400 && /encryption/i.test(JSON.stringify(r.data))
+            ? 'channels.fb.error.encryption'
+            : 'channels.fb.error.token';
+      setMessage({ tone: 'bad', text: t(key) });
     }
   }
 
@@ -105,6 +144,12 @@ export function ChannelsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t('channels.title')}</h1>
         <p className="mt-1 text-slate-600">{t('channels.subtitle')}</p>
       </div>
+
+      {message ? (
+        <p role="status" className={`rounded-xl px-4 py-3 text-sm ${message.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
+          {message.text}
+        </p>
+      ) : null}
 
       <section aria-labelledby="mine" className="space-y-3">
         <h2 id="mine" className="text-base font-semibold">
@@ -140,6 +185,29 @@ export function ChannelsPage() {
 
       {manage ? (
         <>
+          {pending ? (
+            <section aria-labelledby="pick" className="rounded-2xl border-2 border-brand-500 bg-white p-6 shadow-sm">
+              <h2 id="pick" className="text-base font-semibold">
+                {t('channels.fb.pick.title')}
+              </h2>
+              {pending.pages.length === 0 ? <p className="mt-3 text-sm text-slate-500">{t('channels.fb.pick.none')}</p> : null}
+              <ul className="mt-4 divide-y divide-slate-100">
+                {pending.pages.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-3 py-3">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <ChannelIcon channel="messenger" size={28} />
+                      <span className="truncate font-medium">{p.name}</span>
+                      <span className="text-xs text-slate-400">{p.id}</span>
+                    </span>
+                    <button type="button" disabled={busy} onClick={() => void connectPicked(p.id)} className="btn-primary !w-auto">
+                      {t('channels.fb.pick.connect')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section aria-labelledby="fb" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <ChannelIcon channel="messenger" size={32} />
@@ -150,39 +218,56 @@ export function ChannelsPage() {
                 <p className="text-sm text-slate-500">{t('channels.fb.help')}</p>
               </div>
             </div>
-            <form onSubmit={connect} className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="pageId" className="mb-1.5 block text-sm font-medium">
-                  {t('channels.fb.pageId')}
-                </label>
-                <input id="pageId" name="pageId" required inputMode="numeric" pattern="\d{5,25}" className="field" />
+
+            {setup?.oauthConfigured ? (
+              <div className="mt-5">
+                {/* A full page navigation: the browser leaves for Facebook and comes back to the API callback. */}
+                <a href="/api/channels/meta/start" className="btn-primary !w-auto gap-2 !bg-[#1877f2] hover:!bg-[#1464cc]">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                    <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z" />
+                  </svg>
+                  {t('channels.fb.continue')}
+                </a>
+                <p className="mt-2 text-sm text-slate-500">{t('channels.fb.continueHelp')}</p>
               </div>
-              <div>
-                <label htmlFor="pname" className="mb-1.5 block text-sm font-medium">
-                  {t('channels.fb.pageName')}
-                </label>
-                <input id="pname" name="name" maxLength={120} className="field" />
+            ) : setup ? (
+              <div className="mt-5 space-y-3">
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{t('channels.fb.notConfigured')}</p>
+                <CopyField label={t('channels.fb.redirect')} value={setup.oauthRedirectUri} />
               </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="token" className="mb-1.5 block text-sm font-medium">
-                  {t('channels.fb.token')}
-                </label>
-                <input id="token" name="token" type="password" required minLength={20} autoComplete="off" className="field font-mono text-xs" />
-              </div>
-              {setup && !setup.encryptionConfigured ? (
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:col-span-2">{t('channels.fb.error.encryption')}</p>
-              ) : null}
-              {message ? (
-                <p role="status" className={`rounded-lg px-3 py-2 text-sm sm:col-span-2 ${message.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-                  {t(message.key)}
-                </p>
-              ) : null}
-              <div className="sm:col-span-2">
-                <button type="submit" className="btn-primary !w-auto" disabled={busy}>
-                  {busy ? t('common.loading') : t('channels.fb.connect')}
-                </button>
-              </div>
-            </form>
+            ) : null}
+
+            <details className="mt-6 rounded-xl bg-slate-50 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-slate-700">{t('channels.fb.advanced')}</summary>
+              <form onSubmit={connectWithToken} className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="pageId" className="mb-1.5 block text-sm font-medium">
+                    {t('channels.fb.pageId')}
+                  </label>
+                  <input id="pageId" name="pageId" required inputMode="numeric" pattern="\d{5,25}" className="field" />
+                </div>
+                <div>
+                  <label htmlFor="pname" className="mb-1.5 block text-sm font-medium">
+                    {t('channels.fb.pageName')}
+                  </label>
+                  <input id="pname" name="name" maxLength={120} className="field" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="token" className="mb-1.5 block text-sm font-medium">
+                    {t('channels.fb.token')}
+                  </label>
+                  <input id="token" name="token" type="password" required minLength={20} autoComplete="off" className="field font-mono text-xs" />
+                </div>
+                {setup && !setup.encryptionConfigured ? (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:col-span-2">{t('channels.fb.error.encryption')}</p>
+                ) : null}
+                <div className="sm:col-span-2">
+                  <button type="submit" className="btn-primary !w-auto" disabled={busy}>
+                    {busy ? t('common.loading') : t('channels.fb.connect')}
+                  </button>
+                </div>
+              </form>
+            </details>
           </section>
 
           <section aria-labelledby="hook" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

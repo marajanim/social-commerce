@@ -129,6 +129,8 @@ describe('POST /webhooks/meta', () => {
   });
 
   it('answers quickly: p95 under 200 ms for 40 sequential events', async () => {
+    // Warm up first (connection pool, JIT): a running server is never measured on its first requests.
+    for (let i = 0; i < 10; i++) await post(payload(`m_warm_${i}`));
     const times: number[] = [];
     for (let i = 0; i < 40; i++) {
       const t0 = performance.now();
