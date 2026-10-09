@@ -118,7 +118,11 @@ export function ChannelsPage() {
           ? 'channels.fb.error.taken'
           : r.status === 400 && /encryption/i.test(JSON.stringify(r.data))
             ? 'channels.fb.error.encryption'
-            : 'channels.fb.error.token';
+            : r.status === 400 && /different Page/i.test(JSON.stringify(r.data))
+              ? 'channels.fb.error.otherPage'
+              : r.status === 400 && /rejected/i.test(JSON.stringify(r.data))
+                ? 'channels.fb.error.rejected'
+                : 'channels.fb.error.token';
       setMessage({ tone: 'bad', text: t(key) });
     }
   }
