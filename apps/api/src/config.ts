@@ -26,6 +26,8 @@ const schema = z.object({
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_VERIFY_TOKEN: z.string().optional(),
+  /** Facebook Login for Business: the login configuration id (Meta app, Facebook Login for Business, Configurations). */
+  META_LOGIN_CONFIG_ID: z.string().optional(),
   /** Public base URL of the webhook receiver (a tunnel in dev), shown on the channels page. */
   PUBLIC_WEBHOOK_URL: z.string().url().optional(),
   /** Lets owners inject fake customer messages to try the inbox. Never enable in production. */

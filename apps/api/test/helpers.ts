@@ -24,3 +24,27 @@ export function testConfig(
     ...extra,
   });
 }
+
+import type { MetaGraph, MetaPage } from '../src/modules/channels/meta-graph';
+
+/** A scripted stand-in for Meta's Graph API. Tests set the fields to simulate Facebook's answers. */
+export class FakeGraph implements MetaGraph {
+  identity: { id: string; name: string } | null = { id: '104500000000001', name: 'My Test Page' };
+  rejectionReason = 'Invalid OAuth access token data.';
+  userToken: string | null = 'LONG_LIVED_USER_TOKEN';
+  pages: MetaPage[] | null = [];
+  subscribeOk = true;
+  readonly calls = { exchange: [] as { code: string; redirectUri: string }[], subscribed: [] as string[], unsubscribed: [] as string[] };
+
+  getPageIdentity = async () => (this.identity ? { ok: true as const, ...this.identity } : { ok: false as const, reason: this.rejectionReason });
+  exchangeCode = async (i: { code: string; redirectUri: string }) => {
+    this.calls.exchange.push({ code: i.code, redirectUri: i.redirectUri });
+    return this.userToken;
+  };
+  listPages = async () => this.pages;
+  subscribePage = async (pageId: string) => {
+    this.calls.subscribed.push(pageId);
+    return this.subscribeOk;
+  };
+  unsubscribePage = async (pageId: string) => void this.calls.unsubscribed.push(pageId);
+}

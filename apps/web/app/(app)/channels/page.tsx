@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { ChannelsPage } from '../../../components/channels/channels-page';
 
 export default function ChannelsRoute() {
-  return <ChannelsPage />;
+  return (
+    <Suspense>
+      <ChannelsPage />
+    </Suspense>
+  );
 }

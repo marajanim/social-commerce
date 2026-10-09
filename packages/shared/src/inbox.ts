@@ -73,6 +73,16 @@ export interface ChannelSetupDto {
   verifyToken: string | null;
   simulatorEnabled: boolean;
   encryptionConfigured: boolean;
+  /** "Continue with Facebook" is available (META_APP_ID and META_APP_SECRET are set). */
+  oauthConfigured: boolean;
+  /** The address to add under Valid OAuth Redirect URIs in the Meta app. */
+  oauthRedirectUri: string;
+}
+
+/** Pages the signed-in Facebook user may connect. Tokens never leave the server. */
+export interface MetaPendingPagesDto {
+  id: string;
+  pages: { id: string; name: string }[];
 }
 
 export const listConversationsQuery = z.object({
@@ -102,3 +112,5 @@ export const simulateMessageBody = z.object({
   customerName: z.string().trim().min(1).max(80),
   text: z.string().trim().min(1).max(2000),
 });
+
+export const connectPendingPageBody = z.object({ pageId: z.string().trim().regex(/^\d{5,25}$/) });

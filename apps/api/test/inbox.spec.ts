@@ -20,7 +20,7 @@ import { RateLimiter } from '../src/modules/auth/rate-limiter';
 import { META_GRAPH } from '../src/modules/channels/meta-graph';
 import { OUTBOUND_QUEUE } from '../src/queues/inbox-queues';
 import { EMAIL_QUEUE } from '../src/queues/email-queue';
-import { testConfig } from './helpers';
+import { FakeGraph, testConfig } from './helpers';
 
 const PASSWORD = 'correct-horse-battery';
 const PAGE_ID = '104500000000001';
@@ -34,7 +34,7 @@ let agentA: string;
 let tenantA: string;
 let tenantB: string;
 const queued: { tenantId: string; messageId: string }[] = [];
-const graphIdentity: { current: { id: string; name: string } | null } = { current: { id: PAGE_ID, name: 'My Test Page' } };
+const graph = new FakeGraph();
 
 let ip = 0;
 async function login(email: string): Promise<string> {
@@ -83,7 +83,7 @@ beforeAll(async () => {
     .overrideProvider(OUTBOUND_QUEUE)
     .useValue({ enqueue: async (j: { tenantId: string; messageId: string }) => void queued.push(j) })
     .overrideProvider(META_GRAPH)
-    .useValue({ getPageIdentity: async () => graphIdentity.current })
+    .useValue(graph)
     .compile();
   app = mod.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await setupApp(app);
@@ -125,11 +125,15 @@ describe('channels', () => {
   });
 
   it('rejects a token Facebook does not accept and a token for a different Page', async () => {
-    graphIdentity.current = null;
+    graph.identity = null;
+    graph.rejectionReason = 'Error validating access token: Session has expired';
+    const refused = await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toContain('Session has expired'); // Facebook's own reason is passed on
+    expect(refused.body).not.toContain(PAGE_TOKEN);
+    graph.identity = { id: '555000111222', name: 'Other' };
     expect((await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN })).statusCode).toBe(400);
-    graphIdentity.current = { id: '555000111222', name: 'Other' };
-    expect((await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN })).statusCode).toBe(400);
-    graphIdentity.current = { id: PAGE_ID, name: 'My Test Page' };
+    graph.identity = { id: PAGE_ID, name: 'My Test Page' };
   });
 
   it('refuses the same Page in a second workspace with 409', async () => {

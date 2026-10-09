@@ -133,6 +133,37 @@ describe('inbound processing', () => {
     expect(name.display_name).toBe('Karim Ahmed');
   });
 
+  it.each(['echo', 'failed lookup'] as const)('recovers a missing profile after %s', async (cause) => {
+    const { randomBytes } = await import('node:crypto');
+    const { encryptSecret } = await import('@sc/shared/crypto');
+    const ring = { keys: new Map([[1, randomBytes(32)]]), current: 1 };
+    const enc = encryptSecret('PAGE_TOKEN', ring);
+    await q(`UPDATE channel_credentials SET encrypted_token = $1 WHERE channel_account_id = $2`, [enc.ciphertext, accountId]);
+    const psid = cause === 'echo' ? '4004' : '5005';
+    let calls = 0;
+    const withKey: InboundDeps = { ...deps, keyRing: ring, fetchProfile: async () => {
+      calls++;
+      return cause === 'failed lookup' && calls === 1 ? null : { name: 'Recovered Name', picUrl: null };
+    } };
+    const process = async (mid: string, echo = false) => {
+      const ids = await receive(messaging({
+        sender: { id: echo ? PAGE : psid }, recipient: { id: echo ? psid : PAGE },
+        message: { mid, text: 'profile recovery', ...(echo ? { is_echo: true } : {}) },
+      }));
+      await processWebhookEvent(withKey, ids[0] as string);
+    };
+    await process(`m_${psid}_1`, cause === 'echo');
+    expect((await q(`SELECT profile_name FROM contact_identities WHERE external_user_id = $1`, [psid])).rows[0].profile_name).toBeNull();
+    // A teammate's custom name must survive enrichment.
+    if (cause === 'echo') await q(`UPDATE contacts SET display_name = 'VIP customer' WHERE id = (SELECT contact_id FROM contact_identities WHERE external_user_id = $1)`, [psid]);
+    await process(`m_${psid}_2`);
+    await process(`m_${psid}_3`);
+    const row = (await q(`SELECT i.profile_name, ct.display_name FROM contact_identities i JOIN contacts ct ON ct.id = i.contact_id WHERE i.external_user_id = $1`, [psid])).rows[0];
+    expect(row.profile_name).toBe('Recovered Name');
+    expect(row.display_name).toBe(cause === 'echo' ? 'VIP customer' : 'Recovered Name');
+    expect(calls).toBe(cause === 'echo' ? 1 : 2);
+  });
+
   it('applies delivery and read receipts to messages we sent', async () => {
     const inbound = await run(messaging({ message: { mid: 'm_r1', text: 'receipts' } }));
     expect(inbound.outcomes).toEqual(['processed']);

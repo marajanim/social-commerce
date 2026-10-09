@@ -165,3 +165,13 @@ export const messageKeys = pgTable(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.kind, t.scopeId, t.key] })],
 );
+
+export const channelOauthSessions = pgTable('channel_oauth_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  provider: text('provider').notNull().default('meta'),
+  pages: jsonb('pages').notNull(),
+  expiresAt: ts('expires_at').notNull(),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
