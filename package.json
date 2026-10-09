@@ -13,7 +13,8 @@
     "test": "turbo run test",
     "infra:up": "docker compose --env-file .env -f infra/docker/compose.dev.yml up -d --wait",
     "infra:down": "docker compose --env-file .env -f infra/docker/compose.dev.yml down",
-    "infra:reset": "docker compose --env-file .env -f infra/docker/compose.dev.yml down -v"
+    "infra:reset": "docker compose --env-file .env -f infra/docker/compose.dev.yml down -v",
+    "db:migrate": "pnpm --filter @sc/db migrate"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

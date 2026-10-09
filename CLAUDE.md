@@ -81,6 +81,7 @@ API module layout: `apps/api/src/modules/<module>/{<module>.module.ts, *.control
 - Redis keys: `t:{tenantId}:...`. Object keys: `tenants/{tenantId}/...`. Queue jobs carry `tenantId`, and workers set context before any query.
 - A cross-tenant lookup must return 404, not 403, so it does not reveal that the ID exists.
 - Set context only with `set_config('app.tenant_id', ..., true)` (transaction-local) inside `tenantDb`. A session-level `SET` survives the transaction and leaks into the next request on a pooled connection.
+- New tenant tables: write the SQL migration, then call `SELECT enable_tenant_rls('table')` (forced RLS + standard policy) and `SELECT add_updated_at_trigger('table')`. New partitions of a tenant table need the same call, and audit-style tables must revoke UPDATE/DELETE on each partition too. `packages/db/src/rls.spec.ts` fails if a table with `tenant_id` lacks forced RLS.
 - Each process connects with exactly one database role: `app_user` (API), `worker_user` (workers), `auth_user` (auth module only), `outbox_publisher`, `audit_chainer`.
 - Cross-tenant work never bypasses RLS. Use only `sys.resolve_channel_account` (Page to tenant), `sys.due_work` (schedulers get `(tenant_id, id)` pairs, then set context) and `sys.user_workspaces` (login). Adding a new `sys` function needs a reason in the PR and tests.
 - `users` is visible only to yourself and members of the current tenant. Password hashes and 2FA secrets live in `auth.user_credentials` and are read only by the auth module through `auth_user`.

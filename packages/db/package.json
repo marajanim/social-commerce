@@ -2,14 +2,31 @@
   "name": "@sc/db",
   "version": "0.0.0",
   "private": true,
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "migrations"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "migrate": "node --env-file=../../.env --import tsx src/cli/migrate.ts"
   },
-  "devDependencies": { "@sc/config": "workspace:*", "typescript": "^5.8.0", "vitest": "^3.0.0", "eslint": "^9.0.0" }
+  "devDependencies": {
+    "@sc/config": "workspace:*",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0",
+    "eslint": "^9.0.0",
+    "@sc/testing": "workspace:*",
+    "@types/pg": "^8.11.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.0",
+    "pg": "^8.13.0"
+  }
 }
