@@ -118,7 +118,9 @@ export function ChannelsPage() {
           ? 'channels.fb.error.taken'
           : r.status === 400 && /encryption/i.test(JSON.stringify(r.data))
             ? 'channels.fb.error.encryption'
-            : r.status === 400 && /different Page/i.test(JSON.stringify(r.data))
+            : r.status === 400 && /requires .*permission|missing permission/i.test(JSON.stringify(r.data))
+              ? 'channels.fb.error.permission'
+              : r.status === 400 && /different Page/i.test(JSON.stringify(r.data))
               ? 'channels.fb.error.otherPage'
               : r.status === 400 && /rejected/i.test(JSON.stringify(r.data))
                 ? 'channels.fb.error.rejected'
