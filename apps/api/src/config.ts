@@ -39,7 +39,9 @@ export type Config = z.infer<typeof schema> & {
   keyRing: KeyRing | null;
 };
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+export function loadConfig(rawEnv: NodeJS.ProcessEnv = process.env): Config {
+  // A blank value in .env (KEY=) means "not set".
+  const env = Object.fromEntries(Object.entries(rawEnv).filter(([, v]) => v !== ''));
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
     const fields = parsed.error.issues.map((i) => i.path.join('.')).join(', ');

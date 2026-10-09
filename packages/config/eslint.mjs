@@ -48,7 +48,7 @@ export default tseslint.config(
     },
   },
   // Plain JS config files (next.config.mjs and friends) run in Node.
-  { files: ['**/*.mjs', '**/*.cjs'], languageOptions: { globals: { process: 'readonly' } } },
+  { files: ['**/*.mjs', '**/*.cjs'], languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } } },
   {
     files: ['**/*.spec.ts', '**/*.test.ts'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },

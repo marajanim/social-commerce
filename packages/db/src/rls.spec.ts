@@ -13,9 +13,10 @@ const userB = randomUUID();
 const roleA = randomUUID();
 const roleB = randomUUID();
 
-// Tables with tenant_id that are deliberately outside the generic policy. Empty today;
-// webhook_events (M1-3) is the first expected entry and needs a reason here.
-const RLS_EXEMPT = new Set<string>();
+// Tables with a tenant_id column that are deliberately outside the generic policy. Each needs a reason
+// and must be unreachable by app_user. webhook_events: the tenant is unknown when an event arrives, so
+// it is reachable only by worker_user and the webhook receiver (see the next test).
+const RLS_EXEMPT = new Set<string>(['webhook_events']);
 
 beforeAll(async () => {
   t = await createTestDatabase();
@@ -90,6 +91,16 @@ describe('forced RLS coverage', () => {
     expect(rows.length).toBeGreaterThan(5);
     const bad = rows.filter((r) => !RLS_EXEMPT.has(r.name) && !(r.enabled && r.forced && r.policies > 0));
     expect(bad.map((r) => r.name)).toEqual([]);
+  });
+
+  it('every exempt table is closed to the app role', async () => {
+    for (const table of RLS_EXEMPT) {
+      const { rows } = await t.owner.query<{ ok: boolean }>(
+        `SELECT has_table_privilege('app_user', $1, 'SELECT') OR has_table_privilege('app_user', $1, 'INSERT') AS ok`,
+        [table],
+      );
+      expect(rows[0]?.ok, table).toBe(false);
+    }
   });
 
   it('tenants and users, which have no tenant_id column, are also forced', async () => {
