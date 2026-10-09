@@ -17,6 +17,7 @@ async function main(): Promise<void> {
         auth,
         outbox: process.env.OUTBOX_DB_PASSWORD,
         audit: process.env.AUDIT_DB_PASSWORD,
+        worker: process.env.WORKER_DB_PASSWORD,
       });
       console.log(`Login roles ready: ${ready.join(', ')}`);
     } else {

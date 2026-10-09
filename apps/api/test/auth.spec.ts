@@ -10,7 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildAppModule } from '../src/app.module';
 import { setupApp } from '../src/app.setup';
 import { RequirePermission } from '../src/common/decorators';
-import type { Config } from '../src/config';
+import { testConfig } from './helpers';
 import { RateLimiter } from '../src/modules/auth/rate-limiter';
 import { EMAIL_QUEUE } from '../src/queues/email-queue';
 
@@ -59,17 +59,7 @@ beforeAll(async () => {
   // One person in both workspaces.
   await addMember(db.owner, b.tenantId, 'admin', { email: 'owner-a@example.test', name: 'Owner A', passwordHash });
 
-  const config: Config = {
-    NODE_ENV: 'test',
-    API_PORT: 0,
-    APP_DATABASE_URL: db.urls.app,
-    AUTH_DATABASE_URL: db.urls.auth,
-    REDIS_URL: 'redis://localhost:1',
-    WEB_ORIGIN: ORIGIN,
-    SESSION_TTL_DAYS: 30,
-    COOKIE_SECURE: true,
-    cookieSecure: true,
-  };
+  const config = testConfig(db.urls);
   const mod = await Test.createTestingModule({
     imports: [buildAppModule(config, [ProbeController, UndeclaredController])],
   })

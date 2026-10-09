@@ -196,3 +196,5 @@ export const authTokens = authSchema.table('auth_tokens', {
   createdAt: ts('created_at').notNull().defaultNow(),
 });
 
+
+export * from './inbox';

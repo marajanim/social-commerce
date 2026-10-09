@@ -5,6 +5,7 @@ export interface LoginPasswords {
   auth: string;
   outbox?: string;
   audit?: string;
+  worker?: string;
 }
 
 /**
@@ -18,6 +19,7 @@ export async function ensureLoginRoles(pool: Pool, passwords: LoginPasswords): P
     ['auth_login', 'auth_user', passwords.auth],
     ['outbox_login', 'outbox_publisher', passwords.outbox],
     ['audit_login', 'audit_chainer', passwords.audit],
+    ['worker_login', 'worker_user', passwords.worker],
   ];
   const ready: string[] = [];
   for (const [login, role, password] of logins) {

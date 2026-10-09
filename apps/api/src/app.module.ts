@@ -6,6 +6,8 @@ import { CONFIG, loadConfig, type Config } from './config';
 import { DbModule } from './db/db.module';
 import { HealthController } from './health.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { ChannelsModule } from './modules/channels/channels.module';
+import { InboxModule } from './modules/inbox/inbox.module';
 
 /**
  * Builds the app module for a given config (tests pass their own; production reads the
@@ -17,7 +19,7 @@ export function buildAppModule(config: Config = loadConfig(), extraControllers: 
   class ConfigModule {}
 
   @Module({
-    imports: [ConfigModule, DbModule, AuthModule],
+    imports: [ConfigModule, DbModule, AuthModule, ChannelsModule, InboxModule],
     controllers: [HealthController, ...extraControllers],
     providers: [
       // Order matters: the Origin check runs before any session lookup.

@@ -17,7 +17,7 @@ export interface TestDatabase {
   authPool: Pool;
   authDb: AuthDb;
   /** Connection strings of the logins, for apps under test. */
-  urls: { owner: string; app: string; auth: string; outbox: string; audit: string };
+  urls: { owner: string; app: string; auth: string; outbox: string; audit: string; worker: string };
   stop(): Promise<void>;
 }
 
@@ -39,6 +39,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     auth: 'auth_login',
     outbox: 'outbox_login',
     audit: 'audit_login',
+    worker: 'worker_login',
   });
 
   const appUrl = withLogin(ownerUrl, 'app_login', 'app_login');
@@ -59,6 +60,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
       auth: authUrl,
       outbox: withLogin(ownerUrl, 'outbox_login', 'outbox_login'),
       audit: withLogin(ownerUrl, 'audit_login', 'audit_login'),
+      worker: withLogin(ownerUrl, 'worker_login', 'worker_login'),
     },
     async stop() {
       await app.end();

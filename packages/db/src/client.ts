@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { createAuditChainer } from './audit-chain';
 import { createAuthDb, type AuthDb } from './auth-db';
 import { createOutboxPublisher } from './outbox-publisher';
+import { createSystemDb, type SystemDb } from './system';
 import { createTenantDb, createUserDb } from './tenant-db';
 
 export interface Database {
@@ -39,4 +40,19 @@ export function createOutboxPublisherDatabase(connectionString: string) {
 export function createAuditChainerDatabase(connectionString: string) {
   const pool = new Pool({ connectionString, max: 2 });
   return { chainer: createAuditChainer(pool), close: () => pool.end() };
+}
+
+export interface WorkerDatabase extends Database {
+  system: SystemDb;
+}
+
+/** Pool for workers and the webhook receiver. Connect with the worker_login role. */
+export function createWorkerDatabase(connectionString: string, options: { max?: number } = {}): WorkerDatabase {
+  const pool = new Pool({ connectionString, max: options.max ?? 10 });
+  return {
+    tenantDb: createTenantDb(pool),
+    userDb: createUserDb(pool),
+    system: createSystemDb(pool),
+    close: () => pool.end(),
+  };
 }

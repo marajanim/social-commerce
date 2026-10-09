@@ -1,0 +1,1 @@
+{"object":"page","entry":[{"id":"1001","time":1790000001000,"messaging":[{"sender":{"id":"2002"},"recipient":{"id":"1001"},"timestamp":1790000001000,"message":{"mid":"m_img_1","attachments":[{"type":"image","payload":{"url":"https://scontent.example/photo.jpg"}}]}}]}]}

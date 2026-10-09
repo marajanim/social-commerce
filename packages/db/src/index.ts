@@ -3,7 +3,9 @@ export {
   createAuthDatabase,
   createOutboxPublisherDatabase,
   createAuditChainerDatabase,
+  createWorkerDatabase,
   type Database,
+  type WorkerDatabase,
 } from './client';
 export { createTenantDb, createUserDb, type TenantContext, type TenantDb, type Tx } from './tenant-db';
 export { createAuthDb, type AuthDb, type AuthTx } from './auth-db';
@@ -15,3 +17,4 @@ export { createAuditChainer, computeAuditHash, type AuditChainer, type ChainVeri
 export { writeOutbox, eventChannel, type OutboxEventInput, type PublishedEvent } from './outbox';
 export { createOutboxPublisher, type OutboxPublisher, type PublishFn } from './outbox-publisher';
 export * as schema from './schema';
+export { createSystemDb, type SystemDb, type NewWebhookEvent, type WebhookEventRow, type ResolvedAccount } from './system';
