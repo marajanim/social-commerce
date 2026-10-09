@@ -12,8 +12,13 @@ async function main(): Promise<void> {
     const app = process.env.APP_DB_PASSWORD;
     const auth = process.env.AUTH_DB_PASSWORD;
     if (app && auth) {
-      await ensureLoginRoles(pool, { app, auth });
-      console.log('Login roles app_login and auth_login are ready');
+      const ready = await ensureLoginRoles(pool, {
+        app,
+        auth,
+        outbox: process.env.OUTBOX_DB_PASSWORD,
+        audit: process.env.AUDIT_DB_PASSWORD,
+      });
+      console.log(`Login roles ready: ${ready.join(', ')}`);
     } else {
       console.log('APP_DB_PASSWORD / AUTH_DB_PASSWORD not set: login roles left as they are');
     }

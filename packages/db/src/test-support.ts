@@ -16,8 +16,8 @@ export interface TestDatabase {
   /** Pool and facade for the auth_login role. */
   authPool: Pool;
   authDb: AuthDb;
-  /** Connection strings of the three logins, for apps under test. */
-  urls: { owner: string; app: string; auth: string };
+  /** Connection strings of the logins, for apps under test. */
+  urls: { owner: string; app: string; auth: string; outbox: string; audit: string };
   stop(): Promise<void>;
 }
 
@@ -34,7 +34,12 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const ownerUrl = container.getConnectionUri();
   const owner = new Pool({ connectionString: ownerUrl });
   await migrate(owner);
-  await ensureLoginRoles(owner, { app: 'app_login', auth: 'auth_login' });
+  await ensureLoginRoles(owner, {
+    app: 'app_login',
+    auth: 'auth_login',
+    outbox: 'outbox_login',
+    audit: 'audit_login',
+  });
 
   const appUrl = withLogin(ownerUrl, 'app_login', 'app_login');
   const authUrl = withLogin(ownerUrl, 'auth_login', 'auth_login');
@@ -48,7 +53,13 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     userDb: createUserDb(app),
     authPool,
     authDb: createAuthDb(authPool),
-    urls: { owner: ownerUrl, app: appUrl, auth: authUrl },
+    urls: {
+      owner: ownerUrl,
+      app: appUrl,
+      auth: authUrl,
+      outbox: withLogin(ownerUrl, 'outbox_login', 'outbox_login'),
+      audit: withLogin(ownerUrl, 'audit_login', 'audit_login'),
+    },
     async stop() {
       await app.end();
       await authPool.end();
