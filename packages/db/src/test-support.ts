@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { startPostgres } from '@sc/testing';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { migrate } from './migrate';
 import { createTenantDb } from './tenant-db';
 
@@ -15,7 +15,8 @@ export interface TestDatabase {
 
 /** A fresh, fully migrated Postgres with an app_user login, as the API will connect. */
 export async function createTestDatabase(): Promise<TestDatabase> {
-  const pg = await startPostgres();
+  const container = await new PostgreSqlContainer('pgvector/pgvector:pg16').start();
+  const pg = { url: container.getConnectionUri(), pool: new Pool({ connectionString: container.getConnectionUri() }) };
   await migrate(pg.pool);
 
   await pg.pool.query("CREATE ROLE app_login LOGIN PASSWORD 'app_login' IN ROLE app_user");
@@ -30,7 +31,8 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     tenantDb: createTenantDb(app),
     async stop() {
       await app.end();
-      await pg.stop();
+      await pg.pool.end();
+      await container.stop();
     },
   };
 }
