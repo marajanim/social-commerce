@@ -7,7 +7,7 @@
     "dev": "tsx watch src/main.ts",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('dist-test/package.json','{\\\"type\\\":\\\"module\\\"}')\" && vitest run"
+    "test": "node -e \"require('fs').rmSync('dist-test',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('dist-test/package.json','{\\\"type\\\":\\\"module\\\"}')\" && vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -15,7 +15,8 @@
     "@nestjs/platform-fastify": "^11.0.0",
     "@sc/shared": "workspace:*",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "@sc/db": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
@@ -24,6 +25,8 @@
     "eslint": "^9.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "@sc/testing": "workspace:*",
+    "drizzle-orm": "^0.44.0"
   }
 }

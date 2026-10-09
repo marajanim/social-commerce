@@ -13,7 +13,8 @@
   "dependencies": {
     "@testcontainers/postgresql": "^11.0.0",
     "@testcontainers/redis": "^11.0.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "@sc/db": "workspace:*"
   },
   "devDependencies": {
     "@sc/config": "workspace:*",

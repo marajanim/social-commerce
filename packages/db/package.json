@@ -20,13 +20,23 @@
     "typescript": "^5.8.0",
     "vitest": "^3.0.0",
     "eslint": "^9.0.0",
-    "@sc/testing": "workspace:*",
     "@types/pg": "^8.11.0",
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "@testcontainers/postgresql": "^11.0.0"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",
     "pg": "^8.13.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-support": {
+      "types": "./dist/test-support.d.ts",
+      "default": "./dist/test-support.js"
+    }
   }
 }
