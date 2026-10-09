@@ -102,6 +102,24 @@ describe('start', () => {
     expect(url.toString()).not.toContain('test-app-secret');
   });
 
+  it('uses a login configuration id instead of scopes when the app is Facebook Login for Business', async () => {
+    const biz = await Test.createTestingModule({ imports: [buildAppModule(testConfig(db.urls, { META_LOGIN_CONFIG_ID: '1234567890' }))] })
+      .overrideProvider(EMAIL_QUEUE).useValue({ enqueue: async () => undefined })
+      .overrideProvider(OUTBOUND_QUEUE).useValue({ enqueue: async () => undefined })
+      .overrideProvider(META_GRAPH).useValue(graph)
+      .compile();
+    const other = biz.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await setupApp(other);
+    await other.init();
+    await other.getHttpAdapter().getInstance().ready();
+    const res = await other.inject({ method: 'GET', url: '/channels/meta/start', cookies: { sid: ownerA } });
+    const url = new URL(String(res.headers.location));
+    expect(url.searchParams.get('config_id')).toBe('1234567890');
+    expect(url.searchParams.get('override_default_response_type')).toBe('true');
+    expect(url.searchParams.has('scope')).toBe(false);
+    await other.close();
+  });
+
   it('is for people who can manage channels, and needs a session', async () => {
     expect((await get('/channels/meta/start', agentA)).statusCode).toBe(403);
     expect((await get('/channels/meta/start')).statusCode).toBe(401);

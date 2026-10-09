@@ -187,7 +187,7 @@ export class ChannelsService {
     const appId = this.config.META_APP_ID;
     if (!appId || !this.oauthConfigured) throw new BadRequestException('Facebook login is not configured on the server');
     const state = randomBytes(24).toString('base64url');
-    return { state, url: buildLoginUrl({ appId, redirectUri: this.redirectUri, state }) };
+    return { state, url: buildLoginUrl({ appId, redirectUri: this.redirectUri, state, configId: this.config.META_LOGIN_CONFIG_ID }) };
   }
 
   /**

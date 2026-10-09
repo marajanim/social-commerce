@@ -12,6 +12,7 @@ receiver.
 | `META_APP_ID`, `META_APP_SECRET` | Meta app dashboard, Settings, Basic. The secret verifies every webhook signature and completes the Facebook login. |
 | `META_VERIFY_TOKEN` | Any string you choose. You paste the same string into Meta. |
 | `PUBLIC_WEBHOOK_URL` | The public address of the webhook receiver (port 4002). In development use a tunnel, for example `cloudflared tunnel --url http://localhost:4002` or `ngrok http 4002`. |
+| `META_LOGIN_CONFIG_ID` | Only for Facebook Login for Business apps (see below). |
 | `WEB_ORIGIN` | The address you open the app at (`http://localhost:3000` in development). Facebook sends the browser back here. |
 
 Restart the API, webhook receiver and worker after changing them. The Channels page shows
@@ -24,9 +25,9 @@ Restart the API, webhook receiver and worker after changing them. The Channels p
 3. **Messenger, Webhooks:** callback URL `PUBLIC_WEBHOOK_URL/webhooks/meta` and your verify token. Both are shown on the Channels page. This is per app, not per Page.
 4. While the app is in Development mode, people with a role on the app (admin, developer, tester) can log in, connect their Pages and be messaged, with no App Review. Add yourself and your test accounts under App roles. Letting other businesses connect needs App Review and a Live app; that is Phase 2.
 
-The login asks for `pages_show_list`, `pages_messaging`, `pages_manage_metadata` and
-`pages_read_engagement`. If your app type only offers *Facebook Login for Business*, Meta requires a
-login configuration ID instead of a scope list; tell us and the login URL gets a `config_id` option.
+The login asks for `pages_show_list`, `pages_messaging`, `pages_manage_metadata` and `pages_read_engagement`.
+
+**Apps that use Facebook Login for Business** (the sidebar shows that name): create a Configuration (Facebook Login for Business, Configurations, Create) that includes those four permissions, copy its Configuration ID into `META_LOGIN_CONFIG_ID` in `.env`, and register the redirect address under Facebook Login for Business, Settings.
 
 ## 3. Connect a Page
 

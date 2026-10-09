@@ -27,14 +27,23 @@ export const OAUTH_SCOPES = ['pages_show_list', 'pages_messaging', 'pages_manage
 
 const BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
-export function buildLoginUrl(input: { appId: string; redirectUri: string; state: string }): string {
+/**
+ * Classic Facebook Login asks for permissions with `scope`. Apps that only offer Facebook Login for
+ * Business must send a login configuration id instead (the permissions live in that configuration).
+ */
+export function buildLoginUrl(input: { appId: string; redirectUri: string; state: string; configId?: string }): string {
   const q = new URLSearchParams({
     client_id: input.appId,
     redirect_uri: input.redirectUri,
     state: input.state,
     response_type: 'code',
-    scope: OAUTH_SCOPES.join(','),
   });
+  if (input.configId) {
+    q.set('config_id', input.configId);
+    q.set('override_default_response_type', 'true');
+  } else {
+    q.set('scope', OAUTH_SCOPES.join(','));
+  }
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${q.toString()}`;
 }
 
