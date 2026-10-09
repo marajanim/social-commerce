@@ -126,7 +126,11 @@ describe('channels', () => {
 
   it('rejects a token Facebook does not accept and a token for a different Page', async () => {
     graph.identity = null;
-    expect((await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN })).statusCode).toBe(400);
+    graph.rejectionReason = 'Error validating access token: Session has expired';
+    const refused = await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toContain('Session has expired'); // Facebook's own reason is passed on
+    expect(refused.body).not.toContain(PAGE_TOKEN);
     graph.identity = { id: '555000111222', name: 'Other' };
     expect((await call('POST', '/channels/messenger', ownerA, { pageId: '999000111222', accessToken: PAGE_TOKEN })).statusCode).toBe(400);
     graph.identity = { id: PAGE_ID, name: 'My Test Page' };

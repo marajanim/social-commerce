@@ -101,7 +101,7 @@ export class ChannelsService {
       throw new BadRequestException('Channel token encryption is not configured on the server (CHANNEL_KEY_V1)');
     }
     const identity = await this.graph.getPageIdentity(body.accessToken);
-    if (!identity) throw new BadRequestException('Facebook rejected this access token');
+    if (!identity.ok) throw new BadRequestException(`Facebook rejected this access token: ${identity.reason}`);
     if (identity.id !== body.pageId) throw new BadRequestException('This token belongs to a different Page');
     try {
       return await this.createMessengerAccount(auth, {

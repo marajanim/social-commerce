@@ -123,7 +123,8 @@ export function ChannelsPage() {
               : r.status === 400 && /rejected/i.test(JSON.stringify(r.data))
                 ? 'channels.fb.error.rejected'
                 : 'channels.fb.error.token';
-      setMessage({ tone: 'bad', text: t(key) });
+      const detail = (r.data as { message?: string } | null)?.message?.match(/rejected this access token: (.+)$/)?.[1];
+      setMessage({ tone: 'bad', text: detail ? `${t(key)} (Facebook says: ${detail})` : t(key) });
     }
   }
 

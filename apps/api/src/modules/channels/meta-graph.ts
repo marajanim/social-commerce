@@ -11,8 +11,8 @@ export interface MetaPage {
 
 /** Connecting a Page is the one request-time conversation with Meta; nothing else calls it inline. */
 export interface MetaGraph {
-  /** Who does this Page access token belong to? Null when Facebook rejects the token. */
-  getPageIdentity(token: string): Promise<{ id: string; name: string } | null>;
+  /** Who does this Page access token belong to? When Facebook refuses,  is its own explanation. */
+  getPageIdentity(token: string): Promise<{ ok: true; id: string; name: string } | { ok: false; reason: string }>;
   /** Swaps the one-time `code` from the login redirect for a long-lived user token. Null on failure. */
   exchangeCode(input: { code: string; redirectUri: string; appId: string; appSecret: string }): Promise<string | null>;
   /** Pages the user manages, each with its own access token. */
@@ -58,11 +58,19 @@ async function getJson<T>(url: string, init: RequestInit = {}): Promise<T | null
 }
 
 export class HttpMetaGraph implements MetaGraph {
-  async getPageIdentity(token: string): Promise<{ id: string; name: string } | null> {
-    const json = await getJson<{ id?: string; name?: string }>(`${BASE}/me?fields=id,name`, {
-      headers: { authorization: `Bearer ${token}` },
-    });
-    return json?.id ? { id: json.id, name: json.name ?? json.id } : null;
+  async getPageIdentity(token: string): Promise<{ ok: true; id: string; name: string } | { ok: false; reason: string }> {
+    try {
+      const res = await fetch(`${BASE}/me?fields=id,name`, {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+      const json = (await res.json().catch(() => ({}))) as { id?: string; name?: string; error?: { message?: string; code?: number } };
+      if (res.ok && json.id) return { ok: true, id: json.id, name: json.name ?? json.id };
+      // Facebook's own explanation (never contains the token): expired, wrong type, app mismatch...
+      return { ok: false, reason: json.error?.message ?? `HTTP ${res.status}` };
+    } catch (err) {
+      return { ok: false, reason: err instanceof Error ? `could not reach Facebook (${err.message})` : 'could not reach Facebook' };
+    }
   }
 
   async exchangeCode(input: { code: string; redirectUri: string; appId: string; appSecret: string }): Promise<string | null> {
