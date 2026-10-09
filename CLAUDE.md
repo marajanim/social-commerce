@@ -48,6 +48,7 @@ packages/
   db/         Drizzle schema, SQL migrations, tenantDb(), outbox writer. Only package that imports the DB client
   shared/     Zod schemas, types, permission keys, event names, money helpers
   channels/   ChannelAdapter interface + messenger/, webchat/ (instagram/, whatsapp/ later), with fixtures/
+  inbox/      Domain logic shared by API and workers: ingest, send eligibility, outbound create + delivery
   ai/         Model client, prompts, tools, validator, retrieval, evals
   storage/    S3-compatible client and presigned URLs
   testing/    Testcontainers helpers, tenant fixtures, isolation helpers
@@ -164,7 +165,11 @@ API module layout: `apps/api/src/modules/<module>/{<module>.module.ts, *.control
 
 ## Local development notes
 
-- `pnpm infra:up && pnpm db:migrate && pnpm db:seed`, then `pnpm dev` (web :3000, api :4000, worker :4001). `db:migrate` also creates the `app_login` and `auth_login` roles from `APP_DB_PASSWORD` / `AUTH_DB_PASSWORD`; the API connects as those, never as the `postgres` owner (which bypasses RLS).
+- `pnpm infra:up && pnpm db:migrate && pnpm db:seed`, then `pnpm dev`. Processes: web :3000, api :4000, worker :4001, webhook receiver :4002 (`dev:webhooks`), realtime gateway :4003 (`dev:realtime`). Connecting Messenger: `docs/runbooks/connect-messenger.md`. `db:migrate` also creates the `app_login` and `auth_login` roles from `APP_DB_PASSWORD` / `AUTH_DB_PASSWORD`; the API connects as those, never as the `postgres` owner (which bypasses RLS).
 - Nest constructor injection must be explicit (`@Inject(Foo) private readonly foo: Foo`). `tsx` (dev) and Vitest's esbuild do not emit decorator metadata; API tests compile with `tsc` for the same reason.
 - The browser only talks to `/api/*` on the web origin; Next rewrites it to the API (`API_ORIGIN`, read at build time for the web image).
 - Auth: sessions live in `auth.sessions` (cookie holds a random token, only its SHA-256 is stored). Password hashes, sessions and one-time tokens are readable only by `auth_user`. Google sign-in is not built yet (needs OAuth credentials).
+
+- Inbox pipeline: webhook receiver stores raw events (worker_login) -> inbound queue -> worker ingests under the tenant resolved from the Page -> outbox event -> Redis `t:{tenantId}:events` -> realtime gateway -> browser. Replies: API stores a `pending` message + outbox event, enqueues after commit, worker sends through the adapter. A sweeper re-enqueues anything stored but not queued.
+- Timestamps that are part of a foreign key (`messages.created_at`, referenced by `message_keys`) are set from JS (millisecond precision) on purpose: Postgres keeps microseconds, and a JS Date round trip would break the key.
+- `webhook_events` has a tenant_id column but no RLS (the tenant is unknown on arrival); it is listed in the RLS test exemptions and closed to app_user.

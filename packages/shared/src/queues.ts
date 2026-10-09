@@ -12,3 +12,14 @@ export const emailJob = z.object({
   locale: z.enum(['en', 'bn']).default('en'),
 });
 export type EmailJob = z.infer<typeof emailJob>;
+
+// Inbox queues. Jobs carry IDs only; workers load the data under the right tenant.
+export const INBOX_QUEUES = { inbound: 'inbound', outbound: 'outbound' } as const;
+
+/** A stored webhook event to process. The tenant is not known yet: the worker resolves it. */
+export const inboundJob = z.object({ webhookEventId: z.string().uuid() });
+export type InboundJob = z.infer<typeof inboundJob>;
+
+/** A pending outbound message to deliver. tenantId comes from trusted server code. */
+export const outboundJob = z.object({ tenantId: z.string().uuid(), messageId: z.string().uuid() });
+export type OutboundJob = z.infer<typeof outboundJob>;

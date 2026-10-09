@@ -17,7 +17,8 @@
     "@sc/config": "workspace:*",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "@types/node": "^22.0.0"
   },
   "dependencies": {
     "zod": "^3.25.0",
@@ -31,6 +32,10 @@
     "./password": {
       "types": "./dist/password.d.ts",
       "default": "./dist/password.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto.d.ts",
+      "default": "./dist/crypto.js"
     }
   }
 }

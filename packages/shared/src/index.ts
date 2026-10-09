@@ -13,3 +13,4 @@ export function healthResponse(service: ServiceName): HealthResponse {
 export * from './permissions';
 export * from './auth';
 export * from './queues';
+export * from './inbox';
