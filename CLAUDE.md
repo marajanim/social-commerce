@@ -161,3 +161,10 @@ API module layout: `apps/api/src/modules/<module>/{<module>.module.ts, *.control
 4. Run `pnpm lint && pnpm typecheck && pnpm test` (and `pnpm test:e2e` if UI changed).
 5. Summarise what changed, how each acceptance criterion is verified, and any follow-ups.
 6. If the task is bigger than one session, stop at a green, committed checkpoint and propose how to split the rest.
+
+## Local development notes
+
+- `pnpm infra:up && pnpm db:migrate && pnpm db:seed`, then `pnpm dev` (web :3000, api :4000, worker :4001). `db:migrate` also creates the `app_login` and `auth_login` roles from `APP_DB_PASSWORD` / `AUTH_DB_PASSWORD`; the API connects as those, never as the `postgres` owner (which bypasses RLS).
+- Nest constructor injection must be explicit (`@Inject(Foo) private readonly foo: Foo`). `tsx` (dev) and Vitest's esbuild do not emit decorator metadata; API tests compile with `tsc` for the same reason.
+- The browser only talks to `/api/*` on the web origin; Next rewrites it to the API (`API_ORIGIN`, read at build time for the web image).
+- Auth: sessions live in `auth.sessions` (cookie holds a random token, only its SHA-256 is stored). Password hashes, sessions and one-time tokens are readable only by `auth_user`. Google sign-in is not built yet (needs OAuth credentials).

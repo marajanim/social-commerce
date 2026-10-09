@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsx watch src/main.ts",
-    "lint": "eslint .",
+    "dev": "node --env-file=../../.env --import tsx --watch src/main.ts",
+    "lint": "eslint . && node --import tsx ../../scripts/check-route-permissions.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node -e \"require('fs').rmSync('dist-test',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('dist-test/package.json','{\\\"type\\\":\\\"module\\\"}')\" && vitest run"
   },
@@ -16,7 +16,12 @@
     "@sc/shared": "workspace:*",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0",
-    "@sc/db": "workspace:*"
+    "@sc/db": "workspace:*",
+    "@fastify/cookie": "^11.0.0",
+    "bullmq": "^5.34.0",
+    "drizzle-orm": "^0.44.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",

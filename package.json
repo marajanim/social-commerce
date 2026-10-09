@@ -14,7 +14,8 @@
     "infra:up": "docker compose --env-file .env -f infra/docker/compose.dev.yml up -d --wait",
     "infra:down": "docker compose --env-file .env -f infra/docker/compose.dev.yml down",
     "infra:reset": "docker compose --env-file .env -f infra/docker/compose.dev.yml down -v",
-    "db:migrate": "pnpm --filter @sc/db migrate"
+    "db:migrate": "pnpm --filter @sc/db migrate",
+    "db:seed": "pnpm --filter @sc/db seed"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

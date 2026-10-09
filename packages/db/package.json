@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "migrate": "node --env-file=../../.env --import tsx src/cli/migrate.ts"
+    "migrate": "node --env-file=../../.env --import tsx src/cli/migrate.ts",
+    "seed": "node --env-file=../../.env --import tsx src/cli/seed.ts"
   },
   "devDependencies": {
     "@sc/config": "workspace:*",
@@ -27,7 +28,8 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "@sc/shared": "workspace:*"
   },
   "exports": {
     ".": {
