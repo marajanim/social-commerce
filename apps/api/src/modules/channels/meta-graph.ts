@@ -9,10 +9,15 @@ export interface MetaPage {
   accessToken: string;
 }
 
+export type PageIdentity = { ok: true; id: string; name: string | null } | { ok: false; reason: string };
+
 /** Connecting a Page is the one request-time conversation with Meta; nothing else calls it inline. */
 export interface MetaGraph {
-  /** Who does this Page access token belong to? When Facebook refuses,  is its own explanation. */
-  getPageIdentity(token: string): Promise<{ ok: true; id: string; name: string } | { ok: false; reason: string }>;
+  /**
+   * Does this access token belong to (and manage) the Page `pageId`? `name` is null when the token may
+   * not read it. When Facebook refuses, `reason` is its own explanation (never contains the token).
+   */
+  getPageIdentity(token: string, pageId: string): Promise<PageIdentity>;
   /** Swaps the one-time `code` from the login redirect for a long-lived user token. Null on failure. */
   exchangeCode(input: { code: string; redirectUri: string; appId: string; appSecret: string }): Promise<string | null>;
   /** Pages the user manages, each with its own access token. */
@@ -58,16 +63,29 @@ async function getJson<T>(url: string, init: RequestInit = {}): Promise<T | null
 }
 
 export class HttpMetaGraph implements MetaGraph {
-  async getPageIdentity(token: string): Promise<{ ok: true; id: string; name: string } | { ok: false; reason: string }> {
-    try {
-      const res = await fetch(`${BASE}/me?fields=id,name`, {
+  async getPageIdentity(token: string, pageId: string): Promise<PageIdentity> {
+    type GraphReply = { id?: string; name?: string; data?: unknown[]; error?: { message?: string; code?: number } };
+    const call = async (path: string) => {
+      const res = await fetch(`${BASE}${path}`, {
         headers: { authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
       });
-      const json = (await res.json().catch(() => ({}))) as { id?: string; name?: string; error?: { message?: string; code?: number } };
-      if (res.ok && json.id) return { ok: true, id: json.id, name: json.name ?? json.id };
-      // Facebook's own explanation (never contains the token): expired, wrong type, app mismatch...
-      return { ok: false, reason: json.error?.message ?? `HTTP ${res.status}` };
+      return { ok: res.ok, status: res.status, json: (await res.json().catch(() => ({}))) as GraphReply };
+    };
+    try {
+      // 1. Ask the token who it is. Reading the Page's name needs pages_read_engagement, which a token
+      //    generated in the Messenger use case may not carry.
+      const me = await call('/me?fields=id,name');
+      if (me.ok && me.json.id) return { ok: true, id: me.json.id, name: me.json.name ?? null };
+      const reason = me.json.error?.message ?? `HTTP ${me.status}`;
+      if (me.json.error?.code === 190) return { ok: false, reason }; // the token itself is invalid or expired
+
+      // 2. Otherwise check the thing we actually need: can this token manage this Page's webhook
+      //    subscriptions (pages_manage_metadata)? A token for another Page cannot, so this also proves
+      //    the token belongs to the Page.
+      const subs = await call(`/${encodeURIComponent(pageId)}/subscribed_apps`);
+      if (subs.ok) return { ok: true, id: pageId, name: null };
+      return { ok: false, reason: subs.json.error?.message ?? reason };
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? `could not reach Facebook (${err.message})` : 'could not reach Facebook' };
     }

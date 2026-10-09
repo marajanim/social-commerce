@@ -103,6 +103,14 @@ export class ChannelsController {
     return this.channels.ensureDemoChannel(auth);
   }
 
+  /** Retry the webhook subscription of a Page that shows "needs attention". */
+  @RequirePermission('channels.manage')
+  @Post(':id/resubscribe')
+  @HttpCode(200)
+  resubscribe(@Auth() auth: AuthContext, @Param('id', ParseUUIDPipe) id: string): Promise<ChannelAccountDto> {
+    return this.channels.resubscribe(auth, id);
+  }
+
   @RequirePermission('channels.manage')
   @Delete(':id')
   @HttpCode(204)

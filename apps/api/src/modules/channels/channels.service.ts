@@ -100,13 +100,13 @@ export class ChannelsService {
     if (!this.config.keyRing) {
       throw new BadRequestException('Channel token encryption is not configured on the server (CHANNEL_KEY_V1)');
     }
-    const identity = await this.graph.getPageIdentity(body.accessToken);
+    const identity = await this.graph.getPageIdentity(body.accessToken, body.pageId);
     if (!identity.ok) throw new BadRequestException(`Facebook rejected this access token: ${identity.reason}`);
     if (identity.id !== body.pageId) throw new BadRequestException('This token belongs to a different Page');
     try {
       return await this.createMessengerAccount(auth, {
         pageId: body.pageId,
-        name: body.displayName ?? identity.name,
+        name: body.displayName ?? identity.name ?? `Facebook Page ${body.pageId}`,
         token: body.accessToken,
       });
     } catch (err) {
@@ -327,6 +327,44 @@ export class ChannelsService {
       });
       return this.toDto(row, 'Website chat');
     });
+  }
+
+  /**
+   * Subscribes a connected Page to our webhook again. Meta refuses the subscription until the app's
+   * webhook is configured, so a Page connected before that sits at "needs attention" until this runs.
+   */
+  async resubscribe(auth: AuthContext, id: string): Promise<ChannelAccountDto> {
+    const ring = this.config.keyRing;
+    if (!ring) throw new BadRequestException('Channel token encryption is not configured on the server (CHANNEL_KEY_V1)');
+    const found = await this.ctx(auth).transaction(async (tx) => {
+      const account = (
+        await tx
+          .select()
+          .from(schema.channelAccounts)
+          .where(and(eq(schema.channelAccounts.tenantId, auth.tenantId), eq(schema.channelAccounts.id, id)))
+      )[0];
+      const cred = (
+        await tx
+          .select()
+          .from(schema.channelCredentials)
+          .where(and(eq(schema.channelCredentials.tenantId, auth.tenantId), eq(schema.channelCredentials.channelAccountId, id)))
+      )[0];
+      return account ? { account, cred } : null;
+    });
+    if (!found || found.account.channelKey !== 'messenger' || found.account.status === 'disconnected') {
+      throw new NotFoundException('Channel not found');
+    }
+    if (!found.cred) throw new BadRequestException('No access token is stored for this Page. Connect it again.');
+    const token = decryptSecret(found.cred.encryptedToken, found.cred.keyVersion, ring);
+    const ok = await this.graph.subscribePage(found.account.externalId, token);
+    const status = ok ? 'connected' : 'needs_attention';
+    await this.ctx(auth).transaction((tx) =>
+      tx
+        .update(schema.channelAccounts)
+        .set({ status })
+        .where(and(eq(schema.channelAccounts.tenantId, auth.tenantId), eq(schema.channelAccounts.id, id))),
+    );
+    return this.toDto({ ...found.account, status }, 'Facebook Messenger');
   }
 
   async disconnect(auth: AuthContext, id: string): Promise<void> {

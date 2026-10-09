@@ -184,6 +184,16 @@ describe('callback', () => {
     expect(dest.searchParams.get('error')).toBe('subscribe');
     const { rows } = await db.owner.query(`SELECT status FROM channel_accounts WHERE external_id = '104500000000002'`);
     expect(rows[0].status).toBe('needs_attention');
+
+    // Once the webhook is set up in Meta, "Retry setup" subscribes it and clears the flag.
+    graph.subscribeOk = true;
+    const id = (await db.owner.query(`SELECT id FROM channel_accounts WHERE external_id = '104500000000002'`)).rows[0].id;
+    expect((await post(`/channels/${id}/resubscribe`, ownerB)).statusCode).toBe(404); // other workspace
+    expect((await post(`/channels/${id}/resubscribe`, agentA)).statusCode).toBe(403);
+    const retried = await post(`/channels/${id}/resubscribe`, ownerA);
+    expect(retried.statusCode).toBe(200);
+    expect(retried.json<ChannelAccountDto>().status).toBe('connected');
+    expect(graph.calls.subscribed).toEqual(['104500000000002', '104500000000002']);
   });
 
   it('says so when the Page already belongs to another workspace', async () => {

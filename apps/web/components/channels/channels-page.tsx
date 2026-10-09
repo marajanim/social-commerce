@@ -135,6 +135,18 @@ export function ChannelsPage() {
     void load();
   }
 
+  async function retry(id: string) {
+    setBusy(true);
+    const r = await apiPostJson<ChannelAccountDto>(`/channels/${id}/resubscribe`);
+    setBusy(false);
+    setMessage(
+      r.ok && r.data?.status === 'connected'
+        ? { tone: 'ok', text: t('channels.retry.ok') }
+        : { tone: 'bad', text: t('channels.retry.failed') },
+    );
+    void load();
+  }
+
   async function disconnect(id: string) {
     if (!window.confirm(t('channels.disconnectConfirm'))) return;
     await apiDelete(`/channels/${id}`);
@@ -177,6 +189,14 @@ export function ChannelsPage() {
                     {a.lastEventAt ? t('channels.lastEvent', { time: relativeFromNow(a.lastEventAt, locale) }) : t('channels.neverEvent')}
                   </span>
                 </p>
+                {manage && a.channelKey === 'messenger' && a.status === 'needs_attention' ? (
+                  <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                    <p>{t('channels.retry.help')}</p>
+                    <button type="button" disabled={busy} onClick={() => void retry(a.id)} className="btn-ghost mt-2 !py-1 text-xs">
+                      {t('channels.retry')}
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {manage && a.status !== 'disconnected' ? (
                 <button type="button" onClick={() => void disconnect(a.id)} className="text-xs font-medium text-red-600 hover:underline">
