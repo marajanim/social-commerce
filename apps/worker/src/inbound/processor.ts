@@ -61,12 +61,12 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
       return 'ignored';
     }
 
-    // First message from this customer: fetch their name and photo (an outside call, so before the transaction).
+    // Echoes can create a contact before its first inbound message. Retry missing profiles too.
     let profile: { name: string | null; picUrl: string | null } | null = null;
     if (!event.isEcho && deps.keyRing) {
-      const known = await db.transaction(async (tx) => {
+      const hasProfile = await db.transaction(async (tx) => {
         const rows = await tx
-          .select({ id: schema.contactIdentities.id })
+          .select({ name: schema.contactIdentities.profileName })
           .from(schema.contactIdentities)
           .where(
             and(
@@ -75,9 +75,9 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
               eq(schema.contactIdentities.externalUserId, event.externalUserId),
             ),
           );
-        return rows.length > 0;
+        return Boolean(rows[0]?.name?.trim());
       });
-      if (!known) {
+      if (!hasProfile) {
         const cred = await db.transaction(
           async (tx) =>
             (

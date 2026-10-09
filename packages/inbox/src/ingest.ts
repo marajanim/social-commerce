@@ -103,6 +103,21 @@ export async function ingestInboundMessage(
   }
   if (!identity) throw new Error('identity missing');
 
+  // Enrich a contact created by an echo or a failed earlier profile lookup.
+  // Preserve any name/photo already entered by a teammate.
+  if (input.profile?.name && !identity.profileName?.trim()) {
+    await tx.update(schema.contactIdentities)
+      .set({ profileName: input.profile.name, profilePicUrl: input.profile.picUrl ?? identity.profilePicUrl })
+      .where(and(eq(schema.contactIdentities.tenantId, tenantId), eq(schema.contactIdentities.id, identity.id)));
+    await tx.update(schema.contacts)
+      .set({
+        displayName: sql`COALESCE(NULLIF(BTRIM(${schema.contacts.displayName}), ''), ${input.profile.name})`,
+        avatarUrl: sql`COALESCE(${schema.contacts.avatarUrl}, ${input.profile.picUrl})`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(schema.contacts.tenantId, tenantId), eq(schema.contacts.id, identity.contactId)));
+  }
+
   // Conversation: the open one, else reopen a recently resolved one, else start a new one.
   const now = new Date();
   let conversation = (

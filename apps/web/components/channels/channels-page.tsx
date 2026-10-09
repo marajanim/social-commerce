@@ -83,11 +83,11 @@ export function ChannelsPage() {
   async function connectPicked(pageId: string) {
     if (!pending) return;
     setBusy(true);
-    const r = await apiPostJson(`/channels/meta/pending/${pending.id}/connect`, { pageId });
+    const r = await apiPostJson<ChannelAccountDto>(`/channels/meta/pending/${pending.id}/connect`, { pageId });
     setBusy(false);
     if (r.ok) {
       setPending(null);
-      setMessage({ tone: 'ok', text: t('channels.fb.connectedNow') });
+      setConnectionMessage(r.data, 'channels.fb.connectedNow');
       void load();
     } else {
       setMessage({ tone: 'bad', text: r.status === 409 ? t('channels.fb.err.taken') : t('channels.fb.pick.expired') });
@@ -102,7 +102,7 @@ export function ChannelsPage() {
     setBusy(true);
     setMessage(null);
     const name = String(f.get('name') ?? '').trim();
-    const r = await apiPostJson('/channels/messenger', {
+    const r = await apiPostJson<ChannelAccountDto>('/channels/messenger', {
       pageId: String(f.get('pageId') ?? '').trim(),
       accessToken: String(f.get('token') ?? '').trim(),
       ...(name ? { displayName: name } : {}),
@@ -110,7 +110,7 @@ export function ChannelsPage() {
     setBusy(false);
     if (r.ok) {
       form.reset();
-      setMessage({ tone: 'ok', text: t('channels.fb.ok') });
+      setConnectionMessage(r.data, 'channels.fb.ok');
       void load();
     } else {
       const key: MessageKey =
@@ -128,6 +128,14 @@ export function ChannelsPage() {
       const detail = (r.data as { message?: string } | null)?.message?.match(/rejected this access token: (.+)$/)?.[1];
       setMessage({ tone: 'bad', text: detail ? `${t(key)} (Facebook says: ${detail})` : t(key) });
     }
+  }
+
+  function setConnectionMessage(account: ChannelAccountDto | null, successKey: MessageKey) {
+    setMessage(
+      account?.status === 'connected'
+        ? { tone: 'ok', text: t(successKey) }
+        : { tone: 'bad', text: t('channels.fb.err.subscribe') },
+    );
   }
 
   async function addDemo() {
@@ -266,6 +274,14 @@ export function ChannelsPage() {
 
             <details className="mt-6 rounded-xl bg-slate-50 p-4">
               <summary className="cursor-pointer text-sm font-medium text-slate-700">{t('channels.fb.advanced')}</summary>
+              <div className="mt-4 space-y-2 text-sm text-slate-600">
+                <p>{t('channels.fb.tokenHelp')}</p>
+                <p className="font-mono text-xs">pages_messaging, pages_manage_metadata</p>
+                <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="font-medium text-brand-600 underline">
+                  {t('channels.fb.tokenExplorer')}
+                </a>
+                <p>{t('channels.fb.tokenSteps')}</p>
+              </div>
               <form onSubmit={connectWithToken} className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="pageId" className="mb-1.5 block text-sm font-medium">
