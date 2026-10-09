@@ -89,6 +89,7 @@ export class ChannelsService {
       encryptionConfigured: this.config.keyRing !== null,
       oauthConfigured: this.oauthConfigured,
       oauthRedirectUri: this.redirectUri,
+      whatsappConfigured: Boolean(this.oauthConfigured && this.config.META_WHATSAPP_CONFIG_ID),
     };
   }
 

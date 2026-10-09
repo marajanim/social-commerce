@@ -77,6 +77,7 @@ export interface ChannelSetupDto {
   oauthConfigured: boolean;
   /** The address to add under Valid OAuth Redirect URIs in the Meta app. */
   oauthRedirectUri: string;
+  whatsappConfigured?: boolean;
 }
 
 /** Pages the signed-in Facebook user may connect. Tokens never leave the server. */
@@ -114,3 +115,12 @@ export const simulateMessageBody = z.object({
 });
 
 export const connectPendingPageBody = z.object({ pageId: z.string().trim().regex(/^\d{5,25}$/) });
+
+export const connectWhatsAppBody = z.object({
+  wabaId: z.string().regex(/^\d{5,25}$/),
+  phoneNumberId: z.string().regex(/^\d{5,25}$/),
+  accessToken: z.string().trim().min(20).max(4000),
+});
+export const completeWhatsAppBody = connectWhatsAppBody.omit({ accessToken: true }).extend({
+  code: z.string().min(1).max(4000), state: z.string().min(20).max(100),
+});

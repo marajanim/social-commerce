@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { sendMessengerText } from './messenger/send';
+import { sendWhatsAppText } from './whatsapp';
 import type { ChannelAdapter, ChannelKey, FetchLike, SendRequest, SendResult } from './types';
 
 export * from './types';
+export * from './whatsapp';
 export { splitMessengerPayload, messengerEventKey, normalizeMessengerItem, type MessengerItem } from './messenger/parse';
 export { verifyMetaSignature, signMetaPayload } from './messenger/signature';
 export { sendMessengerText, fetchMessengerProfile, classifyGraphError, GRAPH_VERSION } from './messenger/send';
@@ -24,7 +26,7 @@ const webchat: ChannelAdapter = {
   },
 };
 
-const ADAPTERS: Partial<Record<ChannelKey, ChannelAdapter>> = { messenger, webchat };
+const ADAPTERS: Partial<Record<ChannelKey, ChannelAdapter>> = { messenger, webchat, whatsapp: { key: 'whatsapp', send: sendWhatsAppText } };
 
 export function getAdapter(key: string): ChannelAdapter | undefined {
   return ADAPTERS[key as ChannelKey];

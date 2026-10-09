@@ -10,12 +10,15 @@ import { buildAppModule } from '../src/app.module';
 import { setupApp } from '../src/app.setup';
 import { RateLimiter } from '../src/modules/auth/rate-limiter';
 import { META_GRAPH } from '../src/modules/channels/meta-graph';
+import { WHATSAPP_GRAPH } from '../src/modules/channels/whatsapp.service';
 import { EMAIL_QUEUE } from '../src/queues/email-queue';
 import { OUTBOUND_QUEUE } from '../src/queues/inbox-queues';
 import { FakeGraph, WEB_ORIGIN, testConfig } from './helpers';
 
 const PASSWORD = 'correct-horse-battery';
 const graph = new FakeGraph();
+let whatsappStatus = 'CONNECTED';
+const whatsapp = { exchange: async () => 'WHATSAPP_TOKEN_secret_value', phone: async (_token: string, _waba: string, id: string) => id === '55555' ? { id, verified_name: 'Test Business', display_phone_number: '+8801700', status: whatsappStatus } : null, subscribe: async () => true };
 let db: TestDatabase;
 let app: NestFastifyApplication;
 let ownerA: string;
@@ -52,7 +55,8 @@ beforeAll(async () => {
   await addMember(db.owner, tenantA, 'agent', { email: 'agent@example.test', name: 'Agent', passwordHash });
   void b;
 
-  const mod = await Test.createTestingModule({ imports: [buildAppModule(testConfig(db.urls))] })
+  const mod = await Test.createTestingModule({ imports: [buildAppModule(testConfig(db.urls, { META_WHATSAPP_CONFIG_ID: '99999' }))] })
+    .overrideProvider(WHATSAPP_GRAPH).useValue(whatsapp)
     .overrideProvider(EMAIL_QUEUE).useValue({ enqueue: async () => undefined })
     .overrideProvider(OUTBOUND_QUEUE).useValue({ enqueue: async () => undefined })
     .overrideProvider(META_GRAPH).useValue(graph)
@@ -80,6 +84,32 @@ beforeEach(async () => {
 });
 
 describe('start', () => {
+  it('connects WhatsApp through state-checked signup, protects credentials and rejects other tenants', async () => {
+    expect((await get('/channels/whatsapp/setup', agentA)).statusCode).toBe(403);
+    const start = await get('/channels/whatsapp/setup', ownerA);
+    const state = start.json<{ state: string }>().state;
+    expect(start.cookies.find(c => c.name === 'whatsapp_oauth_state')?.httpOnly).toBe(true);
+    const body = { state, code: 'one-time-code', wabaId: '66666', phoneNumberId: '55555' };
+    expect((await post('/channels/whatsapp/complete', ownerA, body)).statusCode).toBe(400);
+    const done = await app.inject({ method: 'POST', url: '/channels/whatsapp/complete', cookies: { sid: ownerA, whatsapp_oauth_state: state }, payload: body });
+    expect(done.statusCode).toBe(201);
+    const account = done.json<ChannelAccountDto>();
+    expect(account).toMatchObject({ channelKey: 'whatsapp', status: 'connected', externalId: '55555' });
+    expect(done.body).not.toContain('WHATSAPP_TOKEN');
+    const cred = (await db.owner.query(`SELECT encrypted_token FROM channel_credentials WHERE channel_account_id=$1`, [account.id])).rows[0];
+    expect(cred.encrypted_token.toString()).not.toContain('WHATSAPP_TOKEN');
+    const manual = { wabaId: '66666', phoneNumberId: '55555', accessToken: 'WHATSAPP_TOKEN_secret_value' };
+    whatsappStatus = 'PENDING';
+    expect((await post('/channels/whatsapp', ownerA, manual)).json<ChannelAccountDto>().status).toBe('needs_attention');
+    whatsappStatus = 'CONNECTED';
+    expect((await post('/channels/whatsapp', ownerB, manual)).statusCode).toBe(409);
+    expect((await post('/channels/whatsapp', ownerA, { ...manual, phoneNumberId: '77777' })).statusCode).toBe(400);
+    expect((await post(`/channels/whatsapp/${account.id}/resubscribe`, ownerB)).statusCode).toBe(404);
+    expect((await post(`/channels/whatsapp/${account.id}/resubscribe`, ownerA)).json<ChannelAccountDto>().status).toBe('connected');
+    await app.inject({ method: 'DELETE', url: `/channels/${account.id}`, cookies: { sid: ownerA } });
+    expect((await post('/channels/whatsapp', ownerA, manual)).json<ChannelAccountDto>().id).toBe(account.id);
+    await db.owner.query(`DELETE FROM channel_accounts WHERE id=$1`, [account.id]);
+  });
   it('reports that Facebook login is available and which redirect address to register', async () => {
     const setup = (await get('/channels/setup', ownerA)).json<ChannelSetupDto>();
     expect(setup.oauthConfigured).toBe(true);

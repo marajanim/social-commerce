@@ -1,6 +1,6 @@
 import type { InboundMessageEvent } from '@sc/channels';
 import { schema, writeOutbox, type Tx } from '@sc/db';
-import { and, desc, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 
 const REOPEN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const STANDARD_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -263,6 +263,8 @@ export async function applyStatusEvent(
     externalUserId: string;
     status: 'delivered' | 'read';
     watermark: Date;
+    /** WhatsApp receipts target exact messages; Messenger uses a conversation watermark. */
+    providerMessageIds?: string[];
   },
 ): Promise<string[]> {
   const { tenantId } = input;
@@ -292,7 +294,9 @@ export async function applyStatusEvent(
         delivered_at = COALESCE(delivered_at, ${input.watermark}),
         read_at = ${input.status === 'read' ? sql`COALESCE(read_at, ${input.watermark})` : sql`read_at`}
       WHERE tenant_id = ${tenantId} AND conversation_id = ${c.id} AND direction = 'outbound'
-        AND status IN ${from} AND sent_at IS NOT NULL AND sent_at <= ${input.watermark}
+        AND status IN ${from} AND sent_at IS NOT NULL
+        ${input.providerMessageIds ? sql`` : sql`AND sent_at <= ${input.watermark}`}
+        ${input.providerMessageIds ? sql`AND ${inArray(schema.messages.providerMessageId, input.providerMessageIds)}` : sql``}
       RETURNING id::text AS id`);
     if (rows.rows.length > 0) {
       changed.push(c.id);

@@ -149,6 +149,8 @@ export const en = {
   'channels.retry': 'Retry setup',
   'channels.retry.help': 'Facebook has not subscribed this Page to messages yet. Save the webhook in your Meta app, then retry.',
   'channels.retry.ok': 'The Page is subscribed. New messages will arrive in your inbox.',
+  'channels.wa.retry.ok': 'WhatsApp setup is ready. Send a new message to check delivery in your inbox.',
+  'channels.wa.retry.help': 'Complete phone number registration and subscribe the WhatsApp messages webhook in Meta, then retry setup.',
   'channels.retry.failed': 'Facebook still refused. Check that the webhook is saved in your Meta app.',
   'channels.disconnectConfirm': 'Disconnect this channel? Messages stop arriving and its token is deleted.',
   'channels.fb.title': 'Facebook Messenger',
@@ -196,7 +198,7 @@ export const en = {
   'channels.fb.err.subscribe': 'The Page was saved, but messages are not connected yet. Configure the webhook in your Meta app and use Retry setup. If the token lacks pages_manage_metadata, disconnect and reconnect with a newly authorized Page token.',
   'channels.fb.err.not_configured': 'Facebook login is not configured on the server.',
   'channels.later.title': 'Coming later',
-  'channels.later.body': 'Instagram and WhatsApp will use the same inbox.',
+  'channels.later.body': 'Instagram will use the same inbox.',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -351,6 +353,8 @@ export const bn: Record<MessageKey, string> = {
   'channels.retry': 'আবার চেষ্টা করুন',
   'channels.retry.help': 'ফেসবুক এখনও এই পেজকে মেসেজে সাবস্ক্রাইব করেনি। মেটা অ্যাপে ওয়েবহুক সংরক্ষণ করে আবার চেষ্টা করুন।',
   'channels.retry.ok': 'পেজটি সাবস্ক্রাইব হয়েছে। নতুন মেসেজ আপনার ইনবক্সে আসবে।',
+  'channels.wa.retry.ok': 'হোয়াটসঅ্যাপ সেটআপ প্রস্তুত। ইনবক্স পরীক্ষা করতে একটি নতুন মেসেজ পাঠান।',
+  'channels.wa.retry.help': 'মেটাতে নম্বর নিবন্ধন সম্পূর্ণ করুন এবং হোয়াটসঅ্যাপ messages ওয়েবহুক সাবস্ক্রাইব করে আবার চেষ্টা করুন।',
   'channels.retry.failed': 'ফেসবুক এখনও রাজি হয়নি। মেটা অ্যাপে ওয়েবহুক সংরক্ষিত আছে কিনা দেখুন।',
   'channels.disconnectConfirm': 'চ্যানেলটি বিচ্ছিন্ন করবেন? মেসেজ আসা বন্ধ হবে এবং টোকেন মুছে যাবে।',
   'channels.fb.title': 'ফেসবুক মেসেঞ্জার',
@@ -398,7 +402,7 @@ export const bn: Record<MessageKey, string> = {
   'channels.fb.err.subscribe': 'পেজটি সংরক্ষিত হয়েছে, কিন্তু মেসেজ এখনও সংযুক্ত হয়নি। মেটা অ্যাপে ওয়েবহুক সেট করে আবার সেটআপ চেষ্টা করুন। টোকেনে pages_manage_metadata না থাকলে নতুন অনুমোদিত পেজ টোকেন দিয়ে বিচ্ছিন্ন করে আবার সংযুক্ত করুন।',
   'channels.fb.err.not_configured': 'সার্ভারে ফেসবুক লগইন কনফিগার করা নেই।',
   'channels.later.title': 'পরে আসছে',
-  'channels.later.body': 'ইনস্টাগ্রাম ও হোয়াটসঅ্যাপও একই ইনবক্স ব্যবহার করবে।',
+  'channels.later.body': 'ইনস্টাগ্রামও একই ইনবক্স ব্যবহার করবে।',
 };
 
 export const MESSAGES = { en, bn } as const;

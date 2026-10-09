@@ -1,4 +1,4 @@
-import { fetchMessengerProfile, normalizeMessengerItem, type MessengerItem } from '@sc/channels';
+import { fetchMessengerProfile, normalizeMessengerItem, normalizeWhatsAppItem, type MessengerItem, type WhatsAppItem } from '@sc/channels';
 import { schema, type WorkerDatabase } from '@sc/db';
 import { applyStatusEvent, ingestInboundMessage } from '@sc/inbox';
 import { decryptSecret, type KeyRing } from '@sc/shared/crypto';
@@ -26,13 +26,14 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
   if (!row) return 'skipped';
 
   try {
-    const event = normalizeMessengerItem(row.payload as MessengerItem);
+    const channelKey = row.provider === 'whatsapp' ? 'whatsapp' : 'messenger';
+    const event = channelKey === 'whatsapp' ? normalizeWhatsAppItem(row.payload as WhatsAppItem) : normalizeMessengerItem(row.payload as MessengerItem);
     if (event.kind === 'unsupported') {
       await system.finishWebhookEvent(row.id, { status: 'processed' });
       return 'ignored';
     }
 
-    const resolved = await system.resolveChannelAccount('messenger', event.externalAccountId);
+    const resolved = await system.resolveChannelAccount(channelKey, event.externalAccountId);
     if (!resolved || resolved.status === 'disconnected') {
       await system.finishWebhookEvent(row.id, { status: 'quarantined', error: 'unknown or disconnected channel account' });
       return 'quarantined';
@@ -49,6 +50,7 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
           externalUserId: event.externalUserId,
           status: event.status,
           watermark: event.watermark,
+          ...(channelKey === 'whatsapp' ? { providerMessageIds: event.providerMessageIds } : {}),
         }),
       );
       await system.finishWebhookEvent(row.id, done);
@@ -62,8 +64,8 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
     }
 
     // Echoes can create a contact before its first inbound message. Retry missing profiles too.
-    let profile: { name: string | null; picUrl: string | null } | null = null;
-    if (!event.isEcho && deps.keyRing) {
+    let profile: { name: string | null; picUrl: string | null } | null = channelKey === 'whatsapp' ? (row.payload as WhatsAppItem).profile ?? null : null;
+    if (channelKey === 'messenger' && !event.isEcho && deps.keyRing) {
       const hasProfile = await db.transaction(async (tx) => {
         const rows = await tx
           .select({ name: schema.contactIdentities.profileName })
@@ -100,7 +102,7 @@ export async function processWebhookEvent(deps: InboundDeps, webhookEventId: str
     }
 
     await db.transaction((tx) =>
-      ingestInboundMessage(tx, { tenantId, account: { id: channelAccountId, channelKey: 'messenger' }, event, profile }),
+      ingestInboundMessage(tx, { tenantId, account: { id: channelAccountId, channelKey }, event, profile }),
     );
     await system.finishWebhookEvent(row.id, done);
     return 'processed';

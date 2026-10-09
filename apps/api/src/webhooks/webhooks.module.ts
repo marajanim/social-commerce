@@ -14,7 +14,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { messengerEventKey, splitMessengerPayload, verifyMetaSignature } from '@sc/channels';
+import { messengerEventKey, splitMessengerPayload, splitWhatsAppPayload, whatsAppEventKey, verifyMetaSignature } from '@sc/channels';
 import { createWorkerDatabase, type WorkerDatabase } from '@sc/db';
 import { INBOX_QUEUES, inboundJob, type InboundJob } from '@sc/shared';
 import { Queue } from 'bullmq';
@@ -90,12 +90,14 @@ export class MetaWebhookController {
     // Meta batches several events per request; store each one so it is processed (and deduped) alone.
     const items = splitMessengerPayload(req.body);
     const fresh = await this.db.system.insertWebhookEvents(
-      items.map((i) => ({
+      [...items.map((i) => ({
         provider: 'messenger',
         eventKey: messengerEventKey(i),
         payload: i,
         signatureValid: true,
-      })),
+      })), ...splitWhatsAppPayload(req.body).map(i => ({
+        provider: 'whatsapp', eventKey: whatsAppEventKey(i), payload: i, signatureValid: true,
+      }))],
     );
     for (const e of fresh) {
       // Redis being down must not lose the event: it is stored, and the worker's sweeper re-enqueues it.

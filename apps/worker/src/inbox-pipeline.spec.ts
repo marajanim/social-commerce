@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { messengerEventKey, splitMessengerPayload } from '@sc/channels';
+import { messengerEventKey, splitMessengerPayload, splitWhatsAppPayload, whatsAppEventKey } from '@sc/channels';
 import { createOutboxPublisherDatabase, createWorkerDatabase, eventChannel, type WorkerDatabase } from '@sc/db';
 import { createTestDatabase, type TestDatabase } from '@sc/db/test-support';
 import { createOutboundMessage } from '@sc/inbox';
@@ -70,11 +70,35 @@ afterAll(async () => {
 });
 
 describe('inbound processing', () => {
+  it('routes WhatsApp messages with profile names and applies receipts only to the named message', async () => {
+    const waAccount = randomUUID();
+    await q(`INSERT INTO channel_accounts (id, tenant_id, channel_key, external_id, display_name) VALUES ($1,$2,'whatsapp','55555','WhatsApp Test')`, [waAccount, tenantId]);
+    const submit = async (value: Record<string, unknown>) => {
+      const items = splitWhatsAppPayload({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: { metadata: { phone_number_id: '55555' }, ...value } }] }] });
+      const ids = await workerDb.system.insertWebhookEvents(items.map(item => ({ provider: 'whatsapp', eventKey: whatsAppEventKey(item), payload: item, signatureValid: true })));
+      for (const row of ids) expect(await processWebhookEvent(deps, row.id)).toBe('processed');
+      return ids;
+    };
+    const value = { contacts: [{ wa_id: '8801700', profile: { name: 'WhatsApp Customer' } }], messages: [{ from: '8801700', id: 'wamid.inbound', timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: 'WhatsApp hello' } }] };
+    await submit(value);
+    expect(await submit(value)).toEqual([]);
+    const conv = (await q(`SELECT c.id, ct.display_name FROM conversations c JOIN contacts ct ON ct.id=c.contact_id WHERE c.channel_account_id=$1`, [waAccount])).rows[0];
+    expect(conv.display_name).toBe('WhatsApp Customer');
+    // Two replies in the same second: WhatsApp's receipt must not act like a Messenger watermark.
+    for (const [seq, mid] of [[2, 'wamid.target'], [3, 'wamid.other']] as const) await q(`INSERT INTO messages (tenant_id,conversation_id,seq,direction,sender_type,content_type,body,status,provider_message_id,sent_at) VALUES ($1,$2,$3,'outbound','system','text','reply','sent',$4,now())`, [tenantId, conv.id, seq, mid]);
+    await submit({ statuses: [{ id: 'wamid.target', recipient_id: '8801700', timestamp: String(Math.floor(Date.now() / 1000)), status: 'read' }] });
+    const rows = (await q(`SELECT provider_message_id,status FROM messages WHERE conversation_id=$1 AND direction='outbound' ORDER BY seq`, [conv.id])).rows;
+    expect(rows).toEqual([{ provider_message_id: 'wamid.target', status: 'read' }, { provider_message_id: 'wamid.other', status: 'sent' }]);
+    await q(`UPDATE channel_accounts SET status='disconnected' WHERE id=$1`, [waAccount]);
+    const items = splitWhatsAppPayload({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: { metadata: { phone_number_id: '55555' }, messages: [{ from: '8801700', id: 'wamid.disconnected', timestamp: '1700000000', type: 'text' }] } }] }] });
+    const [row] = await workerDb.system.insertWebhookEvents(items.map(item => ({ provider: 'whatsapp', eventKey: whatsAppEventKey(item), payload: item, signatureValid: true })));
+    expect(await processWebhookEvent(deps, row!.id)).toBe('quarantined');
+  });
   it('turns a stored webhook event into a conversation under the right tenant', async () => {
     const { outcomes, ids } = await run(messaging({ message: { mid: 'm_1', text: 'দাম কত?' } }));
     expect(outcomes).toEqual(['processed']);
     const conv = (await q(`SELECT c.tenant_id, c.last_message_preview, c.last_seq::int AS seq, ct.display_name
-      FROM conversations c JOIN contacts ct ON ct.id = c.contact_id WHERE c.tenant_id = $1`, [tenantId])).rows[0];
+      FROM conversations c JOIN contacts ct ON ct.id = c.contact_id WHERE c.tenant_id = $1 AND c.channel_account_id = $2`, [tenantId, accountId])).rows[0];
     expect(conv).toMatchObject({ tenant_id: tenantId, last_message_preview: 'দাম কত?', seq: 1 });
     const ev = (await q(`SELECT status, tenant_id, channel_account_id FROM webhook_events WHERE id = $1`, [ids[0]])).rows[0];
     expect(ev).toMatchObject({ status: 'processed', tenant_id: tenantId, channel_account_id: accountId });

@@ -9,6 +9,7 @@ import { useI18n } from '../../lib/i18n';
 import { can, useMe } from '../../lib/me-context';
 import type { MessageKey } from '../../lib/messages';
 import { ChannelIcon } from '../inbox/ui';
+import { WhatsAppConnect } from './whatsapp-connect';
 
 const STATUS_STYLE: Record<ChannelAccountDto['status'], string> = {
   connected: 'bg-emerald-50 text-emerald-700',
@@ -145,14 +146,14 @@ export function ChannelsPage() {
     void load();
   }
 
-  async function retry(id: string) {
+  async function retry(id: string, whatsapp = false) {
     setBusy(true);
-    const r = await apiPostJson<ChannelAccountDto>(`/channels/${id}/resubscribe`);
+    const r = await apiPostJson<ChannelAccountDto>(`/channels/${whatsapp ? 'whatsapp/' : ''}${id}/resubscribe`);
     setBusy(false);
     setMessage(
       r.ok && r.data?.status === 'connected'
-        ? { tone: 'ok', text: t('channels.retry.ok') }
-        : { tone: 'bad', text: t('channels.retry.failed') },
+        ? { tone: 'ok', text: t(whatsapp ? 'channels.wa.retry.ok' : 'channels.retry.ok') }
+        : { tone: 'bad', text: t(whatsapp ? 'channels.wa.retry.help' : 'channels.retry.failed') },
     );
     void load();
   }
@@ -199,10 +200,10 @@ export function ChannelsPage() {
                     {a.lastEventAt ? t('channels.lastEvent', { time: relativeFromNow(a.lastEventAt, locale) }) : t('channels.neverEvent')}
                   </span>
                 </p>
-                {manage && a.channelKey === 'messenger' && a.status === 'needs_attention' ? (
+                {manage && (a.channelKey === 'messenger' || a.channelKey === 'whatsapp') && a.status === 'needs_attention' ? (
                   <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-                    <p>{t('channels.retry.help')}</p>
-                    <button type="button" disabled={busy} onClick={() => void retry(a.id)} className="btn-ghost mt-2 !py-1 text-xs">
+                    <p>{t(a.channelKey === 'whatsapp' ? 'channels.wa.retry.help' : 'channels.retry.help')}</p>
+                    <button type="button" disabled={busy} onClick={() => void retry(a.id, a.channelKey === 'whatsapp')} className="btn-ghost mt-2 !py-1 text-xs">
                       {t('channels.retry')}
                     </button>
                   </div>
@@ -328,6 +329,7 @@ export function ChannelsPage() {
             )}
           </section>
 
+          <WhatsAppConnect configured={setup?.whatsappConfigured ?? false} onConnected={load} />
           <section aria-labelledby="demo" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <ChannelIcon channel="webchat" size={32} />
@@ -353,7 +355,6 @@ export function ChannelsPage() {
         <p className="font-medium text-slate-700">{t('channels.later.title')}</p>
         <p className="mt-1 flex items-center gap-2">
           <ChannelIcon channel="instagram" size={18} />
-          <ChannelIcon channel="whatsapp" size={18} />
           {t('channels.later.body')}
         </p>
       </section>

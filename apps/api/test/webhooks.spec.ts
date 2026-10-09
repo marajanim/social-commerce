@@ -73,6 +73,16 @@ describe('GET /webhooks/meta (handshake)', () => {
 });
 
 describe('POST /webhooks/meta', () => {
+  it('verifies, stores and deduplicates WhatsApp events on the same endpoint', async () => {
+    const body = { object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: { metadata: { phone_number_id: '55555' }, messages: [{ id: 'wamid.test', from: '8801700', timestamp: '1700000000', type: 'text', text: { body: 'hello' } }] } }] }] };
+    const before = await stored();
+    expect((await post(body, 'sha256=bad')).statusCode).toBe(403);
+    expect(await stored()).toBe(before);
+    expect((await post(body)).statusCode).toBe(200);
+    expect((await post(body)).statusCode).toBe(200);
+    expect(await stored()).toBe(before + 1);
+    expect((await db.owner.query(`SELECT provider FROM webhook_events WHERE provider='whatsapp'`)).rows).toEqual([{ provider: 'whatsapp' }]);
+  });
   it('rejects a bad or missing signature with 403 and stores nothing', async () => {
     const before = await stored();
     expect((await post(payload('m_bad'), 'sha256=' + '0'.repeat(64))).statusCode).toBe(403);
