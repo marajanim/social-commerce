@@ -1,37 +1,58 @@
 import { Pool } from 'pg';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { createAuthDb, type AuthDb } from './auth-db';
+import { ensureLoginRoles } from './logins';
 import { migrate } from './migrate';
-import { createTenantDb } from './tenant-db';
+import { createTenantDb, createUserDb } from './tenant-db';
 
 export interface TestDatabase {
   /** Superuser pool: seeds data and inspects the catalog. Bypasses RLS, so never use it to assert isolation. */
   owner: Pool;
-  /** Pool for a login that is a member of app_user only. One connection, so leaks between transactions would show. */
+  /** Pool for the app_login role. One connection, so a context leak between transactions would show. */
   app: Pool;
-  /** tenantDb bound to the `app` pool. */
+  /** tenantDb / userDb bound to the `app` pool. */
   tenantDb: ReturnType<typeof createTenantDb>;
+  userDb: ReturnType<typeof createUserDb>;
+  /** Pool and facade for the auth_login role. */
+  authPool: Pool;
+  authDb: AuthDb;
+  /** Connection strings of the three logins, for apps under test. */
+  urls: { owner: string; app: string; auth: string };
   stop(): Promise<void>;
 }
 
-/** A fresh, fully migrated Postgres with an app_user login, as the API will connect. */
+function withLogin(base: string, user: string, password: string): string {
+  const url = new URL(base);
+  url.username = user;
+  url.password = password;
+  return url.toString();
+}
+
+/** A fresh, fully migrated Postgres with the same app and auth logins the services use. */
 export async function createTestDatabase(): Promise<TestDatabase> {
   const container = await new PostgreSqlContainer('pgvector/pgvector:pg16').start();
-  const pg = { url: container.getConnectionUri(), pool: new Pool({ connectionString: container.getConnectionUri() }) };
-  await migrate(pg.pool);
+  const ownerUrl = container.getConnectionUri();
+  const owner = new Pool({ connectionString: ownerUrl });
+  await migrate(owner);
+  await ensureLoginRoles(owner, { app: 'app_login', auth: 'auth_login' });
 
-  await pg.pool.query("CREATE ROLE app_login LOGIN PASSWORD 'app_login' IN ROLE app_user");
-  const url = new URL(pg.url);
-  url.username = 'app_login';
-  url.password = 'app_login';
-  const app = new Pool({ connectionString: url.toString(), max: 1 });
+  const appUrl = withLogin(ownerUrl, 'app_login', 'app_login');
+  const authUrl = withLogin(ownerUrl, 'auth_login', 'auth_login');
+  const app = new Pool({ connectionString: appUrl, max: 1 });
+  const authPool = new Pool({ connectionString: authUrl, max: 2 });
 
   return {
-    owner: pg.pool,
+    owner,
     app,
     tenantDb: createTenantDb(app),
+    userDb: createUserDb(app),
+    authPool,
+    authDb: createAuthDb(authPool),
+    urls: { owner: ownerUrl, app: appUrl, auth: authUrl },
     async stop() {
       await app.end();
-      await pg.pool.end();
+      await authPool.end();
+      await owner.end();
       await container.stop();
     },
   };

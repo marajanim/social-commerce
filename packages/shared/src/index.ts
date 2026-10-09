@@ -9,3 +9,7 @@ export interface HealthResponse {
 export function healthResponse(service: ServiceName): HealthResponse {
   return { status: 'ok', service };
 }
+
+export * from './permissions';
+export * from './auth';
+export * from './queues';

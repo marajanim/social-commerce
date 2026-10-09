@@ -4,12 +4,17 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3000",
+    "dev": "node --env-file=../../.env node_modules/next/dist/bin/next dev -p 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": { "next": "^15.3.0", "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "dependencies": {
+    "next": "^15.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@sc/shared": "workspace:*"
+  },
   "devDependencies": {
     "@sc/config": "workspace:*",
     "@types/node": "^22.0.0",
@@ -17,6 +22,9 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "postcss": "^8.5.0"
   }
 }

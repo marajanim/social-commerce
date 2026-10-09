@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "api", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@sc/api", "dev"], "port": 4000 },
+    { "name": "worker", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@sc/worker", "dev"], "port": 4001 },
+    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@sc/web", "dev"], "port": 3000 }
+  ]
+}

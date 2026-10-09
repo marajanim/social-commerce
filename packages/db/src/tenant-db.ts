@@ -45,3 +45,22 @@ export function createTenantDb(pool: Pool) {
 }
 
 export type TenantDb = ReturnType<ReturnType<typeof createTenantDb>>;
+
+/**
+ * Context with only a user (no tenant yet), for `sys.user_workspaces()` at login. Transaction-local
+ * like tenantDb, and the only other place app.* is set.
+ */
+export function createUserDb(pool: Pool) {
+  const db = drizzle(pool, { schema });
+  return function userDb(userId: string) {
+    assertUuid('userId', userId);
+    return {
+      transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+        return db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT set_config('app.user_id', ${userId}, true)`);
+          return fn(tx);
+        });
+      },
+    };
+  };
+}

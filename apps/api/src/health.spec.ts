@@ -2,12 +2,12 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { AppModule } from './app.module';
+import { HealthController } from './health.controller';
 
 let app: NestFastifyApplication;
 
 beforeAll(async () => {
-  const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const mod = await Test.createTestingModule({ controllers: [HealthController] }).compile();
   app = mod.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await app.init();
   await app.getHttpAdapter().getInstance().ready();

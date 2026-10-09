@@ -4,7 +4,7 @@ RUN npm i -g pnpm@12.10.1
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @sc/web build
+RUN pnpm --filter @sc/web... build
 
 FROM node:22-slim
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0

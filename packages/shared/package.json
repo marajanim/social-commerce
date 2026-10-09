@@ -2,7 +2,9 @@
   "name": "@sc/shared",
   "version": "0.0.0",
   "private": true,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,5 +13,24 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
-  "devDependencies": { "@sc/config": "workspace:*", "typescript": "^5.8.0", "vitest": "^3.0.0", "eslint": "^9.0.0" }
+  "devDependencies": {
+    "@sc/config": "workspace:*",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0",
+    "eslint": "^9.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.25.0",
+    "@node-rs/argon2": "^2.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./password": {
+      "types": "./dist/password.d.ts",
+      "default": "./dist/password.js"
+    }
+  }
 }
